@@ -1,0 +1,67 @@
+table Calendario
+	lineageTag: f5762782-0026-0181-5f51-38226236d17e
+	dataCategory: Time
+
+	column Fecha
+		dataType: dateTime
+		isKey
+		formatString: yyyy-mm-dd
+		lineageTag: b53311c5-003b-0f54-13eb-8b4bc5ac62a4
+		summarizeBy: none
+		sourceColumn: fecha
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column mes_num
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: db1cf374-00c8-3dcb-76b5-61cfe14d79e2
+		summarizeBy: none
+		sourceColumn: mes_num
+
+		annotation SummarizationSetBy = Automatic
+
+	column Mes
+		dataType: string
+		lineageTag: b9143b9b-bb28-3777-5c3d-ed299cc62e65
+		summarizeBy: none
+		sourceColumn: mes_nombre
+		sortByColumn: mes_num
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Año-mes'
+		dataType: string
+		lineageTag: f1df32ba-0f64-23ed-f93c-28a17b76024d
+		summarizeBy: none
+		sourceColumn: anio_mes
+
+		annotation SummarizationSetBy = Automatic
+
+	column Trimestre
+		dataType: int64
+		formatString: 0
+		lineageTag: 2ade556b-79e8-a252-15f4-5c2e303cd407
+		summarizeBy: none
+		sourceColumn: trimestre
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Calendario = m
+		mode: import
+		source =
+				let
+				    Archivo = "dim_fecha.csv",
+				    Binario = if Text.StartsWith(DataPath, "http")
+				        then Web.Contents(DataPath, [RelativePath = Archivo])
+				        else File.Contents(DataPath & Archivo),
+				    Fuente = Csv.Document(Binario, [Delimiter = ",", Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
+				    Encabezados = Table.PromoteHeaders(Fuente, [PromoteAllScalars = true]),
+				    Tipos = Table.TransformColumnTypes(Encabezados, {{"fecha", type date}, {"mes_num", Int64.Type}, {"mes_nombre", type text}, {"anio_mes", type text}, {"trimestre", Int64.Type}}, "en-US")
+				in
+				    Tipos
+
+	annotation PBI_ResultType = Table

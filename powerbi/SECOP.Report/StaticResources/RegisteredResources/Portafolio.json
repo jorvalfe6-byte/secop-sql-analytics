@@ -1,0 +1,107 @@
+{
+  "name": "SECOP portafolio",
+  "dataColors": [
+    "#00918b",
+    "#b8632c",
+    "#4faea7",
+    "#0b6b66",
+    "#8ccbc5",
+    "#858077"
+  ],
+  "foreground": "#1d1e20",
+  "foregroundNeutralSecondary": "#55524c",
+  "foregroundNeutralTertiary": "#858077",
+  "background": "#faf8f3",
+  "backgroundLight": "#f3f0e8",
+  "backgroundNeutral": "#e2ddd1",
+  "tableAccent": "#00918b",
+  "good": "#00918b",
+  "neutral": "#858077",
+  "bad": "#b8632c",
+  "maximum": "#00918b",
+  "center": "#e2ddd1",
+  "minimum": "#faf8f3",
+  "textClasses": {
+    "title": {
+      "fontFace": "Segoe UI Semibold",
+      "fontSize": 12,
+      "color": "#1d1e20"
+    },
+    "header": {
+      "fontFace": "Segoe UI Semibold",
+      "fontSize": 12,
+      "color": "#1d1e20"
+    },
+    "label": {
+      "fontFace": "Segoe UI",
+      "fontSize": 10,
+      "color": "#55524c"
+    },
+    "callout": {
+      "fontFace": "Segoe UI Semibold",
+      "fontSize": 24,
+      "color": "#1d1e20"
+    }
+  },
+  "visualStyles": {
+    "page": {
+      "*": {
+        "background": [
+          {
+            "color": {
+              "solid": {
+                "color": "#f3f0e8"
+              }
+            },
+            "transparency": 0
+          }
+        ]
+      }
+    },
+    "*": {
+      "*": {
+        "background": [
+          {
+            "show": true,
+            "color": {
+              "solid": {
+                "color": "#faf8f3"
+              }
+            },
+            "transparency": 0
+          }
+        ],
+        "border": [
+          {
+            "show": true,
+            "color": {
+              "solid": {
+                "color": "#e2ddd1"
+              }
+            },
+            "radius": 6
+          }
+        ],
+        "dropShadow": [
+          {
+            "show": false
+          }
+        ]
+      }
+    },
+    "textbox": {
+      "*": {
+        "background": [
+          {
+            "show": false
+          }
+        ],
+        "border": [
+          {
+            "show": false
+          }
+        ]
+      }
+    }
+  }
+}

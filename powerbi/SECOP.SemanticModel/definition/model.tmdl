@@ -1,0 +1,23 @@
+model Model
+	culture: en-US
+	defaultPowerBIDataSourceVersion: powerBI_V3
+	discourageImplicitMeasures
+	sourceQueryCulture: en-US
+	dataAccessOptions
+		legacyRedirects
+		returnErrorValuesAsNull
+
+annotation __PBI_TimeIntelligenceEnabled = 0
+
+annotation PBI_QueryOrder = ["DataPath", "Contratos", "Duración", "Pareto proveedores", "Top proveedores", "Calendario", "Entidad", "Departamento", "Modalidad", "Tipo de persona"]
+
+ref table Contratos
+ref table 'Duración'
+ref table 'Pareto proveedores'
+ref table 'Top proveedores'
+ref table Calendario
+ref table Entidad
+ref table Departamento
+ref table Modalidad
+ref table 'Tipo de persona'
+

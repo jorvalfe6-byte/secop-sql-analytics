@@ -1,0 +1,24 @@
+relationship a9c8fc59-128d-6645-2726-34093aa05edb
+	fromColumn: Contratos.mes
+	toColumn: Calendario.Fecha
+
+relationship b70cca7f-3ffb-2181-4176-4063b66d6190
+	fromColumn: Contratos.entidad_key
+	toColumn: Entidad.entidad_key
+
+relationship d7492d31-a94b-a15f-eda6-c57a8d4a27e3
+	fromColumn: Entidad.departamento_key
+	toColumn: Departamento.departamento_key
+
+relationship fe384a4c-994b-a7e9-98c2-17e58679c716
+	fromColumn: Contratos.modalidad_key
+	toColumn: Modalidad.modalidad_key
+
+relationship cf9e8bfb-4beb-9131-c109-4b153491714e
+	fromColumn: Contratos.tipo_persona
+	toColumn: 'Tipo de persona'.'Tipo de persona'
+
+relationship f8cf670e-cdec-d838-b67d-13452a268ac8
+	fromColumn: 'Duración'.modalidad_key
+	toColumn: Modalidad.modalidad_key
+

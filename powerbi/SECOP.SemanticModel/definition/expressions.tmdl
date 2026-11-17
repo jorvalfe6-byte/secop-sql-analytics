@@ -1,0 +1,10 @@
+/// Carpeta local (con barra final) o URL raw de GitHub (con barra final) donde están los CSV.
+expression DataPath =
+		"https://raw.githubusercontent.com/jorvalfe6-byte/secop-sql-analytics/main/powerbi/data/" meta [
+			IsParameterQuery = true,
+			Type = "Text",
+			IsParameterQueryRequired = true
+		]
+	lineageTag: 9d316752-aad3-56a0-52f4-2944572ab878
+
+	annotation PBI_ResultType = Text

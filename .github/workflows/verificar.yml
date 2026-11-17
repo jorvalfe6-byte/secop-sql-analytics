@@ -1,0 +1,74 @@
+# Reconstruye la base desde cero con una MUESTRA fija del dataset y comprueba
+# que toda la cadena corre: carga, controles de calidad en OK, consultas de
+# análisis y exportación del JSON.
+#
+# Por qué una muestra: el año completo son ~880 mil contratos y bajarlos de la
+# API de datos.gov.co toma cerca de una hora. El CI usa los primeros 2.000
+# contratos de cada mes (por id_contrato), unos 24 mil en total.
+# Por qué no se compara el JSON publicado: el dataset de SECOP se corrige y se
+# actualiza en el origen, y no se puede fijar a una versión como se hace con un
+# repositorio. Los números del README salen de la carga completa en local.
+name: Verificar carga
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  carga:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: secop
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: secop
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Descargar la muestra (2.000 contratos por mes)
+        run: SECOP_MUESTRA=2000 ./scripts/download_data.sh
+
+      - name: Cargar y validar (falla si algún control dice REVISAR)
+        run: ./scripts/load.sh
+
+      - name: Correr las consultas de análisis
+        run: |
+          for f in sql/analysis/0[1-9]*.sql sql/analysis/1*.sql; do
+            [ -f "$f" ] || continue
+            echo "→ $f"
+            psql -X -q -v ON_ERROR_STOP=1 -f "$f" > /dev/null
+          done
+
+      - name: Exportar el JSON y comprobar que es válido
+        run: |
+          ./scripts/export_dashboard.sh
+          python3 - <<'PY'
+          import json
+          d = json.load(open("docs/data/dashboard.json", encoding="utf-8"))
+          claves = ["kpis", "mensual", "departamentos", "sectores", "entidades", "proveedores",
+                    "concentracion", "modalidades", "grupos_modalidad", "duracion", "ejecucion", "calidad"]
+          faltan = [c for c in claves if not d.get(c)]
+          assert not faltan, f"faltan secciones: {faltan}"
+          print("JSON válido:", {c: (len(d[c]) if isinstance(d[c], list) else "obj") for c in claves})
+          PY
+
+      - name: Comprobar el esquema de Power BI
+        run: |
+          psql -X -q -At -v ON_ERROR_STOP=1 -c "SELECT table_name FROM information_schema.views WHERE table_schema = 'powerbi' ORDER BY 1"
+          psql -X -q -At -v ON_ERROR_STOP=1 -c "SELECT COUNT(*) FROM powerbi.fact_contrato"

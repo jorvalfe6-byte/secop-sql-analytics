@@ -1,0 +1,70 @@
+table Entidad
+	lineageTag: 6cbb2f50-1f8d-3d94-2180-fb61222ce201
+
+	column entidad_key
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: fd751394-9e04-e81b-be52-6bb92385e29a
+		summarizeBy: none
+		sourceColumn: entidad_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column Entidad
+		dataType: string
+		lineageTag: 313bb7de-abff-aa35-7393-1ad54eee11c8
+		summarizeBy: none
+		sourceColumn: entidad
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'NIT de la entidad'
+		dataType: string
+		lineageTag: 99b5926b-dba2-593c-a7b0-e3844325b942
+		summarizeBy: none
+		sourceColumn: nit_entidad
+
+		annotation SummarizationSetBy = Automatic
+
+	column Sector
+		dataType: string
+		lineageTag: 6092013c-879d-f93c-f99a-13632a5720fc
+		summarizeBy: none
+		sourceColumn: sector
+
+		annotation SummarizationSetBy = Automatic
+
+	column Orden
+		dataType: string
+		lineageTag: 8ca1c41b-ac79-8177-dbbe-e9b28405d82a
+		summarizeBy: none
+		sourceColumn: orden
+
+		annotation SummarizationSetBy = Automatic
+
+	column departamento_key
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 60bded09-8887-03dc-a56e-74a9495ea3f8
+		summarizeBy: none
+		sourceColumn: departamento_key
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Entidad = m
+		mode: import
+		source =
+				let
+				    Archivo = "dim_entidad.csv",
+				    Binario = if Text.StartsWith(DataPath, "http")
+				        then Web.Contents(DataPath, [RelativePath = Archivo])
+				        else File.Contents(DataPath & Archivo),
+				    Fuente = Csv.Document(Binario, [Delimiter = ",", Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
+				    Encabezados = Table.PromoteHeaders(Fuente, [PromoteAllScalars = true]),
+				    Tipos = Table.TransformColumnTypes(Encabezados, {{"entidad_key", Int64.Type}, {"entidad", type text}, {"nit_entidad", type text}, {"sector", type text}, {"orden", type text}, {"departamento_key", Int64.Type}}, "en-US")
+				in
+				    Tipos
+
+	annotation PBI_ResultType = Table

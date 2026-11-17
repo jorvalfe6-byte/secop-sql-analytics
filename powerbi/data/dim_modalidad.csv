@@ -1,0 +1,16 @@
+modalidad_key,modalidad,modalidad_grupo
+1,Concurso de méritos abierto,Competitiva
+2,Concurso de méritos con precalificación,Competitiva
+3,Licitación Pública Acuerdo Marco de Precios,Competitiva
+4,Licitación pública,Competitiva
+5,Licitación pública Obra Publica,Competitiva
+6,Mínima cuantía,Competitiva
+7,Seleccion Abreviada Menor Cuantia Sin Manifestacion Interes,Competitiva
+8,Selección Abreviada de Menor Cuantía,Competitiva
+9,Selección abreviada subasta inversa,Competitiva
+10,Contratación Directa (con ofertas),Contratación directa
+11,Contratación directa,Contratación directa
+12,Enajenación de bienes con sobre cerrado,Otra
+13,Enajenación de bienes con subasta,Otra
+14,Contratación régimen especial,Régimen especial
+15,Contratación régimen especial (con ofertas),Régimen especial

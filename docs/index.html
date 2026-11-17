@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SECOP II · Contratación estatal de Colombia con SQL — Jorge Valencia</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%226%22 fill=%22%231d1e20%22/%3E%3Cpath d=%22M8 22h4V14H8zm6 0h4V8h-4zm6 0h4V17h-4z%22 fill=%22%2300918b%22/%3E%3C/svg%3E">
+<meta name="description" content="Demo de análisis de datos: los contratos estatales firmados en Colombia en 2024 (SECOP II), modelados en PostgreSQL y analizados con SQL.">
+<style>
+  :root {
+    color-scheme: light;
+    --surface-0: #f3f0e8;     /* marfil de fondo */
+    --surface-1: #faf8f3;     /* superficie de tarjetas y gráficos */
+    --line:      #e2ddd1;     /* grilla y bordes */
+    --text-1:    #1d1e20;     /* grafito */
+    --text-2:    #55524c;
+    --text-3:    #858077;
+    --series-1:  #00918b;     /* turquesa (validado vs. #faf8f3) */
+    --series-2:  #b8632c;     /* cobre */
+    --wash-1:    rgba(0,145,139,.10);
+    --seq-0:#e6f3f1; --seq-1:#bfe2de; --seq-2:#8ccbc5; --seq-3:#4faea7; --seq-4:#12908a; --seq-5:#0b6b66;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --surface-0: #141516;
+      --surface-1: #1b1c1e;
+      --line:      #2e3033;
+      --text-1:    #f1eee6;
+      --text-2:    #bdb8ad;
+      --text-3:    #8b877e;
+      --series-1:  #16a39a;   /* validado vs. #1b1c1e */
+      --series-2:  #cc7a40;
+      --wash-1:    rgba(22,163,154,.12);
+      --seq-0:#22302f; --seq-1:#1f4744; --seq-2:#1d625d; --seq-3:#1a7f78; --seq-4:#22a59c; --seq-5:#6fd0c8;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--surface-0); color: var(--text-1);
+    font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .num, td.n, .kpi b { font-variant-numeric: tabular-nums; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+  a { color: inherit; text-decoration-color: var(--series-1); text-underline-offset: 3px; }
+
+  header.top { padding: 56px 0 28px; border-bottom: 1px solid var(--line); }
+  .eyebrow { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--text-3); margin: 0 0 14px; }
+  h1 {
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    font-weight: 500; font-size: clamp(30px, 5vw, 50px); line-height: 1.08; letter-spacing: -.01em;
+    margin: 0 0 16px; max-width: 24ch;
+  }
+  h1 em { font-style: italic; color: var(--series-1); }
+  .lede { max-width: 62ch; color: var(--text-2); font-size: 17px; margin: 0 0 22px; }
+  .byline { display: flex; flex-wrap: wrap; gap: 8px 22px; font-size: 13px; color: var(--text-3); }
+  .byline strong { color: var(--text-1); font-weight: 600; }
+
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1px;
+          background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin: 32px 0 8px; }
+  .kpi { background: var(--surface-1); padding: 16px 18px; }
+  .kpi span { display: block; font-size: 12px; color: var(--text-3); }
+  .kpi b { display: block; font-size: 26px; font-weight: 600; letter-spacing: -.01em; margin-top: 2px; }
+  .kpi small { color: var(--text-2); font-size: 12px; }
+
+  section.block { padding: 44px 0 8px; }
+  h2 { font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif; font-weight: 500;
+       font-size: 26px; margin: 0 0 4px; }
+  .block > .wrap > p.sub { color: var(--text-2); margin: 0 0 20px; max-width: 70ch; }
+
+  .grid { display: grid; gap: 16px; grid-template-columns: repeat(12, 1fr); }
+  .card { grid-column: span 12; background: var(--surface-1); border: 1px solid var(--line);
+          border-radius: 10px; padding: 20px 20px 14px; min-width: 0; }
+  .colstack { grid-column: span 12; display: grid; gap: 16px; align-content: start; min-width: 0; }
+  @media (min-width: 860px) { .span-6 { grid-column: span 6; } .span-7 { grid-column: span 7; } .span-5 { grid-column: span 5; } }
+  .card h3 { font-size: 16px; font-weight: 600; margin: 0 0 2px; line-height: 1.35; }
+  .card .desc { font-size: 13px; color: var(--text-2); margin: 0 0 12px; }
+  .chart { position: relative; width: 100%; }
+  .chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12px; color: var(--text-2); margin: 0 0 8px; }
+  .legend i { display: inline-block; vertical-align: middle; margin-right: 6px; }
+  .legend i.rect { width: 10px; height: 10px; border-radius: 2px; }
+  .legend i.ln { width: 16px; height: 2px; border-radius: 1px; }
+  .legend i.ln.dash { background: repeating-linear-gradient(90deg, currentColor 0 4px, transparent 4px 7px) !important; }
+
+  .card footer { display: flex; justify-content: space-between; gap: 12px; align-items: baseline;
+                 border-top: 1px solid var(--line); margin-top: 12px; padding-top: 10px; font-size: 12px; color: var(--text-3); }
+  details summary { cursor: pointer; color: var(--text-2); }
+  details[open] summary { margin-bottom: 8px; }
+  .tbl { max-height: 300px; overflow: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 12px; }
+  th, td { padding: 4px 8px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+  th { color: var(--text-3); font-weight: 500; position: sticky; top: 0; background: var(--surface-1); }
+  td.n, th.n { text-align: right; }
+
+  svg text { fill: var(--text-2); font-size: 11px; }
+  svg .axis text { fill: var(--text-3); }
+  svg .grid line { stroke: var(--line); stroke-width: 1; shape-rendering: crispEdges; }
+  svg .lbl { fill: var(--text-1); font-weight: 600; }
+  /* halo del color de fondo: el valor se lee aunque lo cruce la línea de referencia */
+  svg .val { paint-order: stroke; stroke: var(--surface-1); stroke-width: 3px; stroke-linejoin: round; }
+  .hit { fill: transparent; cursor: default; }
+  .mark { transition: opacity .12s; }
+  .chart.hovering .mark:not(.on) { opacity: .45; }
+  .hit:focus { outline: none; }
+  .hit:focus-visible + .mark, .mark.on { opacity: 1; }
+
+  #tip { position: fixed; pointer-events: none; z-index: 10; min-width: 120px; max-width: 260px;
+         background: var(--surface-1); color: var(--text-1); border: 1px solid var(--line);
+         box-shadow: 0 6px 24px rgba(0,0,0,.12); border-radius: 8px; padding: 8px 10px; font-size: 12px;
+         opacity: 0; transform: translateY(4px); transition: opacity .1s, transform .1s; }
+  #tip.show { opacity: 1; transform: none; }
+  #tip .t { color: var(--text-3); margin-bottom: 4px; }
+  #tip .r { display: flex; align-items: center; gap: 8px; }
+  #tip .r b { font-size: 14px; font-variant-numeric: tabular-nums; }
+  #tip .r i { width: 12px; height: 2px; border-radius: 1px; flex: none; }
+  #tip .r span { color: var(--text-2); }
+
+  .stat3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 6px 0 4px; }
+  .stat3 div { border-left: 2px solid var(--series-1); padding: 2px 0 2px 10px; }
+  .stat3 b { display: block; font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .stat3 span { font-size: 12px; color: var(--text-2); }
+
+  .how ol { counter-reset: s; list-style: none; padding: 0; margin: 0; display: grid; gap: 1px;
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); background: var(--line);
+            border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .how li { background: var(--surface-1); padding: 16px 18px; font-size: 13px; color: var(--text-2); }
+  .how li::before { counter-increment: s; content: "0" counter(s); display: block; color: var(--series-1);
+                    font: 600 12px/1 ui-monospace, Menlo, monospace; margin-bottom: 8px; }
+  .how li b { display: block; color: var(--text-1); font-size: 14px; margin-bottom: 2px; }
+  code { font: 12px ui-monospace, Menlo, Consolas, monospace; background: var(--wash-1); padding: 1px 5px; border-radius: 4px; }
+
+  footer.end { margin: 56px 0 0; padding: 22px 0 40px; border-top: 1px solid var(--line); font-size: 12px; color: var(--text-3); }
+  footer.end p { margin: 0 0 6px; max-width: 80ch; }
+  .err { padding: 40px 0; color: var(--text-2); }
+  .note { font-size: 12px; color: var(--text-3); margin: 10px 0 0; max-width: 80ch; }
+  .tbl.tall { max-height: 420px; }
+  td.w, th.w { white-space: normal; min-width: 220px; }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <p class="eyebrow">Demo de análisis de datos · PostgreSQL + SQL</p>
+    <h1 id="h1">Lo que dicen los contratos <em>del Estado colombiano</em></h1>
+    <p class="lede" id="lede"></p>
+    <div class="byline">
+      <span><strong>Jorge Valencia</strong> · automatizaciones y análisis de datos</span>
+      <span id="periodo"></span>
+      <a href="https://github.com/jorvalfe6-byte/secop-sql-analytics">Código y consultas en GitHub</a>
+    </div>
+    <div class="kpis" id="kpis" aria-label="Indicadores principales"></div>
+  </div>
+</header>
+
+<main id="main">
+  <section class="block">
+    <div class="wrap">
+      <h2>Cuánto, cuándo y dónde</h2>
+      <p class="sub">Valor contratado por mes de firma, por departamento de la entidad y por sector. Solo contratos válidos.</p>
+      <div class="grid">
+        <article class="card">
+          <h3 id="t-mensual"></h3>
+          <p class="desc">Valor de los contratos firmados cada mes, en pesos colombianos. Con media móvil de 3 meses.</p>
+          <div class="legend" id="lg-mensual"></div>
+          <div class="chart" id="c-mensual"></div>
+          <footer><details><summary>Ver tabla</summary><div class="tbl" id="tb-mensual"></div></details>
+            <a href="https://github.com/jorvalfe6-byte/secop-sql-analytics/blob/main/sql/analysis/02_valor_mensual.sql">SQL ↗</a></footer>
+        </article>
+        <article class="card span-7">
+          <h3 id="t-depto"></h3>
+          <p class="desc">Top 15 departamentos por valor contratado. Es el departamento de la entidad que contrata, no el de ejecución.</p>
+          <div class="chart" id="c-depto"></div>
+          <footer><details><summary>Ver tabla (todos)</summary><div class="tbl tall" id="tb-depto"></div></details>
+            <a href="https://github.com/jorvalfe6-byte/secop-sql-analytics/blob/main/sql/analysis/03_departamentos_sectores.sql">SQL ↗</a></footer>
+        </article>
+        <article class="card span-5">
+          <h3 id="t-sector"></h3>
+          <p class="desc">Top 10 sectores por valor contratado.</p>
+          <div class="chart" id="c-sector"></div>
+          <footer><details><summary>Ver tabla (todos)</summary><div class="tbl" id="tb-sector"></div></details>
+            <a href="https://github.com/jorvalfe6-byte/secop-sql-analytics/blob/main/sql/analysis/03_departamentos_sectores.sql">SQL ↗</a></footer>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="wrap">
+      <h2>Concentración</h2>
+      <p class="sub">Pocas entidades y pocos proveedores se quedan con la mayor parte del dinero.</p>
+      <div class="grid">
+        <article class="card span-6">
+          <h3 id="t-pareto"></h3>
+          <p class="desc">Curva de Pareto: qué parte del valor contratado se lleva el primer X % de proveedores y de entidades, ordenados de mayor a menor.</p>
+          <div class="legend" id="lg-pareto"></div>
+          <div class="chart" id="c-pareto"></div>
+          <div class="stat3" id="s-conc"></div>
+          <footer><details><summary>Ver tabla</summary><div class="tbl" id="tb-pareto"></div></details>
+            <a href="https://github.com/jorvalfe6-byte/secop-sql-analytics/blob/main/sql/analysis/04_concentracion_pareto.sql">SQL ↗</a></footer>
+        </article>
+        <div class="colstack span-6">
+          <article class="card">
+            <h3>Las 10 entidades que más contratan</h3>
+            <p class="desc">Por valor contratado.</p>
+            <div class="chart" id="c-entidades"></div>
+            <footer><details><summary>Ver tabla</summary><div class="tbl" id="tb-entidades"></div></details>
+              <a href="https://github.com/jorvalfe6-byte/secop-sql-analytics/blob/main/sql/analysis/04_concentracion_pareto.sql">SQL ↗</a></footer>
+          </article>
+          <article class="card">
+            <h3>Los 10 proveedores que más reciben</h3>
+            <p class="desc">Solo personas jurídicas (con NIT). Las personas naturales no se nombran en este dashboard.</p>
+            <div class="chart" id="c-proveedores"></div>
+            <footer><details><summary>Ver tabla</summary><div class="tbl" id="tb-proveedores"></div></details>
+              <a href="https://github.com/jorvalfe6-byte/secop-sql-analytics/blob/main/sql/analysis/04_concentracion_pareto.sql">SQL ↗</a></footer>
+          </article>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="wrap">
+      <h2>Cómo se contrata</h2>
+      <p class="sub">Modalidad, duración y ejecución de los contratos.</p>
+      <div class="grid">
+        <article class="card span-6">
+          <h3 id="t-mod"></h3>
+          <p class="desc">Peso de cada forma de contratar en número de contratos y en valor. Régimen especial agrupa a quienes contratan por fuera del estatuto general (por ejemplo, hospitales públicos y universidades).</p>
+          <div class="legend" id="lg-mod"></div>
+          <div class="chart" id="c-mod"></div>
+          <footer><details><summary>Ver las modalidades originales</summary><div class="tbl" id="tb-mod"></div></details>
+            <a href="https://github.com/jorvalfe6-byte/secop-sql-analytics/blob/main/sql/analysis/05_modalidades.sql">SQL ↗</a></footer>
+        </article>
+        <article class="card span-6">
+          <h3 id="t-dur"></h3>
+          <p class="desc">% de contratos por duración, calculada entre fecha de inicio y de fin. Solo contratos con fechas coherentes.</p>
+          <div class="chart" id="c-dur"></div>
+          <footer><details><summary>Ver tabla</summary><div class="tbl" id="tb-dur"></div></details>
+            <a href="https://github.com/jorvalfe6-byte/secop-sql-analytics/blob/main/sql/analysis/06_duracion.sql">SQL ↗</a></footer>
+        </article>
+        <article class="card">
+          <h3 id="t-ejec"></h3>
+          <p class="desc" id="d-ejec"></p>
+          <div class="stat3" id="s-ejec"></div>
+          <p class="note" id="n-ejec"></p>
+          <footer><span></span><a href="https://github.com/jorvalfe6-byte/secop-sql-analytics/blob/main/sql/analysis/07_ejecucion_adiciones.sql">SQL ↗</a></footer>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="wrap">
+      <h2>Calidad de los datos</h2>
+      <p class="sub" id="sub-cal"></p>
+      <div class="grid">
+        <article class="card span-7">
+          <h3>Qué tan sucia viene la fuente</h3>
+          <p class="desc">Número de contratos afectados por cada problema (un contrato puede tener varios). Ninguno se borró: quedan marcados y se excluyen de los análisis que dependen del campo dañado.</p>
+          <div class="chart" id="c-cal"></div>
+          <footer><details><summary>Ver tabla</summary><div class="tbl tall" id="tb-cal"></div></details>
+            <a href="https://github.com/jorvalfe6-byte/secop-sql-analytics/blob/main/sql/analysis/08_calidad_hallazgos.sql">SQL ↗</a></footer>
+        </article>
+        <article class="card span-5">
+          <h3>Qué se hizo con cada problema</h3>
+          <p class="desc">Reglas aplicadas al cargar.</p>
+          <div class="tbl tall" id="tb-reglas"></div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="block how">
+    <div class="wrap">
+      <h2>Cómo está hecho</h2>
+      <p class="sub" id="sub-how"></p>
+      <ol>
+        <li><b>Descarga</b>La API pública de datos.gov.co, paginada por mes de firma y con orden estable. Solo las columnas necesarias: ningún dato de representantes, supervisores ni cuentas bancarias.</li>
+        <li><b>Staging</b>Los 12 CSV entran tal cual, como texto, con <code>\copy</code>. Nada falla por un formato raro.</li>
+        <li><b>Core</b>Modelo tipado con claves primarias, foráneas y <code>CHECK</code>. Cada carga queda registrada en una tabla de auditoría.</li>
+        <li><b>Validación</b>Controles contra el conteo de la API y de integridad. Si uno dice <code>REVISAR</code>, la carga se detiene.</li>
+        <li><b>Mart</b>Vista materializada a nivel de contrato, con una marca por cada problema de calidad.</li>
+        <li><b>Publicación</b>Solo agregados salen a un JSON; esta página lo dibuja sin librerías externas. Hay además un esquema <code>powerbi</code> en estrella.</li>
+      </ol>
+    </div>
+  </section>
+</main>
+
+<footer class="end">
+  <div class="wrap">
+    <p>Datos: <a href="https://www.datos.gov.co/Gastos-Gubernamentales/SECOP-II-Contratos-Electr-nicos/jbjy-vk9h">SECOP II – Contratos Electrónicos</a>, Agencia Nacional de Contratación Pública (Colombia Compra Eficiente), publicados en datos.gov.co con licencia CC BY-SA 4.0. Esta página solo publica agregados, bajo la misma licencia.</p>
+    <p>Montos en pesos colombianos (COP). 1 billón = un millón de millones. Contrato válido = valor de al menos $ 1.000 y menos de 1 billón, y que no sea una repetición de otro contrato (ver calidad de los datos). <span id="gen"></span></p>
+  </div>
+</footer>
+
+<div id="tip" role="status" aria-live="polite"></div>
+
+<script>
+"use strict";
+// ---------- formato ----------
+const nf0 = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
+const nf1 = new Intl.NumberFormat("es-CO", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const nf2 = new Intl.NumberFormat("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const cop = v => "$ " + nf0.format(v);
+// escala larga colombiana: millón = 1e6, mil millones = 1e9, billón = 1e12
+const copC = v => v >= 1e12 ? "$ " + nf1.format(v / 1e12) + " billones"
+                : v >= 1e9  ? "$ " + nf0.format(v / 1e9) + " mil millones"
+                : v >= 1e6  ? "$ " + nf0.format(v / 1e6) + " millones" : "$ " + nf0.format(v);
+const brl = cop, brlC = copC;      // nombres que usan los gráficos heredados
+const pct = (v, d = 1) => (d === 2 ? nf2 : nf1).format(v) + " %";
+const MESES = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+const mesTxt = s => { const [y, m] = s.split("-"); return MESES[+m - 1] + " " + y; };
+const mesCorto = s => { const [y, m] = s.split("-"); return MESES[+m - 1] + (m === "01" ? " " + y.slice(2) : ""); };
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const GRUPO_COLOR = {};
+// ---------- utilidades DOM (los textos entran siempre con textContent) ----------
+const NS = "http://www.w3.org/2000/svg";
+function s(tag, attrs = {}, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function txt(parent, x, y, str, attrs = {}) {
+  // fill va como style: la regla CSS "svg text" ganaría sobre el atributo
+  const { fill, ...rest } = attrs;
+  const t = s("text", { x, y, ...rest }, parent);
+  if (fill) t.style.fill = fill;
+  t.textContent = str; return t;
+}
+function h(tag, cls, str) { const e = document.createElement(tag); if (cls) e.className = cls; if (str != null) e.textContent = str; return e; }
+function svgRoot(el, w, hgt, label) {
+  el.textContent = "";
+  return s("svg", { viewBox: `0 0 ${w} ${hgt}`, role: "img", "aria-label": label }, el);
+}
+// barra horizontal: base cuadrada a la izquierda, extremo de datos redondeado 4px
+function barPath(x, y, w, hgt, r = 4) {
+  r = Math.min(r, w, hgt / 2);
+  if (w <= 0) return "";
+  return `M${x},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + hgt - r}Q${x + w},${y + hgt} ${x + w - r},${y + hgt}H${x}Z`;
+}
+function niceMax(v) { const p = Math.pow(10, Math.floor(Math.log10(v))), n = v / p;
+  return ([1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].find(x => n <= x)) * p; }
+
+// ---------- tooltip ----------
+const tip = document.getElementById("tip");
+function showTip(ev, title, rows) {
+  tip.textContent = "";
+  tip.appendChild(h("div", "t", title));
+  for (const r of rows) {
+    const row = h("div", "r");
+    if (r.color) { const i = h("i"); i.style.background = r.color; row.appendChild(i); }
+    row.appendChild(h("b", null, r.value));
+    if (r.name) row.appendChild(h("span", null, r.name));
+    tip.appendChild(row);
+  }
+  let x, y;
+  if (ev.clientX != null && ev.type !== "focus") { x = ev.clientX; y = ev.clientY; }
+  else { const b = ev.target.getBoundingClientRect(); x = b.left + b.width / 2; y = b.top; }
+  tip.classList.add("show");
+  const tw = tip.offsetWidth, th = tip.offsetHeight;
+  let left = x + 14, top = y - th - 10;
+  if (left + tw > innerWidth - 8) left = x - tw - 14;
+  if (top < 8) top = y + 16;
+  tip.style.left = Math.max(8, left) + "px"; tip.style.top = top + "px";
+}
+function hideTip() { tip.classList.remove("show"); }
+function bindHover(hit, mark, chartEl, fn) {
+  hit.setAttribute("tabindex", "0");
+  const on = ev => { chartEl.classList.add("hovering"); mark.classList.add("on"); fn(ev); };
+  const off = () => { chartEl.classList.remove("hovering"); mark.classList.remove("on"); hideTip(); };
+  hit.addEventListener("pointermove", on); hit.addEventListener("focus", on);
+  hit.addEventListener("pointerleave", off); hit.addEventListener("blur", off);
+}
+
+// ---------- tabla accesible ----------
+function table(el, cols, rows) {
+  const t = h("table"), thead = h("thead"), tr = h("tr");
+  cols.forEach(c => { const th = h("th", c.n ? "n" : null, c.t); th.scope = "col"; tr.appendChild(th); });
+  thead.appendChild(tr); t.appendChild(thead);
+  const tb = h("tbody");
+  rows.forEach(r => { const row = h("tr"); cols.forEach(c => row.appendChild(h("td", c.n ? "n" : null, c.f(r)))); tb.appendChild(row); });
+  t.appendChild(tb); el.textContent = ""; el.appendChild(t);
+}
+function legend(el, items) {
+  el.textContent = "";
+  for (const it of items) {
+    const sp = h("span"), i = h("i", it.type + (it.dash ? " dash" : ""));
+    i.style.background = it.color; i.style.color = it.color;
+    sp.appendChild(i); sp.appendChild(document.createTextNode(it.name)); el.appendChild(sp);
+  }
+}
+
+// ---------- gráfico de líneas con crosshair ----------
+function lineChart(el, data, series, opt) {
+  const W = el.clientWidth || 700, H = Math.round(Math.max(240, Math.min(340, W * .42)));
+  const m = { t: 14, r: 92, b: 26, l: 72 };
+  const svg = svgRoot(el, W, H, opt.label);
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const ymax = niceMax(Math.max(...data.flatMap(d => series.map(sr => d[sr.key]))));
+  const X = i => m.l + (iw * i) / (data.length - 1), Y = v => m.t + ih - (ih * v) / ymax;
+  const g = s("g", { class: "grid" }, svg), ax = s("g", { class: "axis" }, svg);
+  for (let k = 0; k <= 4; k++) {
+    const v = (ymax * k) / 4, y = Y(v);
+    s("line", { x1: m.l, x2: m.l + iw, y1: y, y2: y }, g);
+    txt(ax, m.l - 8, y + 4, brlC(v), { "text-anchor": "end" });
+  }
+  const step = W < 420 ? 4 : W < 640 ? 3 : 2;
+  data.forEach((d, i) => { if (i % step === 0) txt(ax, X(i), H - 6, mesCorto(d.mes), { "text-anchor": "middle" }); });
+  // área tenue bajo la serie principal
+  const p0 = series[0];
+  s("path", { d: `M${X(0)},${Y(0)}` + data.map((d, i) => `L${X(i)},${Y(d[p0.key])}`).join("") + `L${X(data.length - 1)},${Y(0)}Z`, fill: css("--wash-1") }, svg);
+  series.forEach(sr => {
+    s("path", { d: data.map((d, i) => (i ? "L" : "M") + X(i) + "," + Y(d[sr.key])).join(""), fill: "none",
+                stroke: sr.color, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round",
+                ...(sr.dash ? { "stroke-dasharray": "5 4" } : {}) }, svg);
+  });
+  // etiquetas directas al final de cada línea (sin solaparse)
+  const last = data.length - 1;
+  const ends = series.map(sr => ({ sr, y: Y(data[last][sr.key]) })).sort((a, b) => a.y - b.y);
+  for (let k = 1; k < ends.length; k++) if (ends[k].y - ends[k - 1].y < 30) ends[k].y = ends[k - 1].y + 30;
+  ends.forEach(e => {
+    s("circle", { cx: X(last), cy: Y(data[last][e.sr.key]), r: 4, fill: e.sr.color, stroke: css("--surface-1"), "stroke-width": 2 }, svg);
+    txt(svg, X(last) + 10, e.y - 2, e.sr.short, { class: "lbl" });
+    txt(svg, X(last) + 10, e.y + 12, brlC(data[last][e.sr.key]));
+  });
+  // capa de hover: crosshair que se ajusta al mes más cercano
+  const cross = s("line", { y1: m.t, y2: m.t + ih, stroke: css("--text-3"), "stroke-width": 1, opacity: 0 }, svg);
+  const dots = series.map(sr => s("circle", { r: 4, fill: sr.color, stroke: css("--surface-1"), "stroke-width": 2, opacity: 0 }, svg));
+  const ov = s("rect", { x: m.l, y: m.t, width: iw, height: ih, fill: "transparent", tabindex: 0 }, svg);
+  let cur = last;
+  const show = (i, ev) => {
+    cur = i; const d = data[i];
+    cross.setAttribute("x1", X(i)); cross.setAttribute("x2", X(i)); cross.setAttribute("opacity", 1);
+    dots.forEach((c, k) => { c.setAttribute("cx", X(i)); c.setAttribute("cy", Y(d[series[k].key])); c.setAttribute("opacity", 1); });
+    const r = series.map(sr => ({ color: sr.color, value: brl(d[sr.key]), name: sr.name }));
+    r.push({ value: nf0.format(d.contratos), name: "contratos" });
+    showTip(ev, mesTxt(d.mes), r);
+  };
+  ov.addEventListener("pointermove", ev => {
+    const b = svg.getBoundingClientRect(), px = ((ev.clientX - b.left) / b.width) * W;
+    show(Math.max(0, Math.min(last, Math.round(((px - m.l) / iw) * last))), ev);
+  });
+  ov.addEventListener("focus", ev => show(cur, ev));
+  ov.addEventListener("keydown", ev => {
+    if (ev.key === "ArrowRight" || ev.key === "ArrowLeft") {
+      ev.preventDefault(); const i = Math.max(0, Math.min(last, cur + (ev.key === "ArrowRight" ? 1 : -1)));
+      const b = svg.getBoundingClientRect();
+      show(i, { clientX: b.left + (X(i) / W) * b.width, clientY: b.top + (m.t / H) * b.height + 20 });
+    }
+  });
+  const off = () => { cross.setAttribute("opacity", 0); dots.forEach(c => c.setAttribute("opacity", 0)); hideTip(); };
+  ov.addEventListener("pointerleave", off); ov.addEventListener("blur", off);
+}
+
+// ---------- barras horizontales (una o dos series) ----------
+function barsH(el, rows, opt) {
+  const W = el.clientWidth || 600;
+  const ser = opt.series, nS = ser.length;
+  const barH = Math.min(opt.barH || 16, 24), gap = 2, band = nS * barH + (nS - 1) * gap + (opt.bandPad || 10);
+  const labW = opt.labelW || Math.min(170, W * .36);
+  const m = { t: opt.refLabel ? 18 : 4, r: 56, b: 4, l: labW };
+  const H = m.t + rows.length * band + m.b;
+  const svg = svgRoot(el, W, H, opt.label);
+  const iw = W - m.l - m.r;
+  const max = opt.max || niceMax(Math.max(...rows.flatMap(r => ser.map(sr => r[sr.key]))));
+  const Xs = v => (iw * v) / max;
+  s("line", { x1: m.l, x2: m.l, y1: m.t - 2, y2: H - m.b, stroke: css("--line"), "stroke-width": 1 }, svg);
+  if (opt.ref != null) {
+    const rx = m.l + Xs(opt.ref);
+    s("line", { x1: rx, x2: rx, y1: m.t - 4, y2: H - m.b, stroke: css("--text-3"), "stroke-width": 1, "stroke-dasharray": "0" }, svg);
+    txt(svg, rx + 4, 11, opt.refLabel, { fill: css("--text-3") });
+  }
+  rows.forEach((r, i) => {
+    const y0 = m.t + i * band + (opt.bandPad || 10) / 2;
+    txt(svg, m.l - 10, y0 + (nS * barH + (nS - 1) * gap) / 2 + 4, opt.labelOf(r), { "text-anchor": "end", fill: css("--text-1") });
+    ser.forEach((sr, k) => {
+      const y = y0 + k * (barH + gap), w = Math.max(1, Xs(r[sr.key]));
+      const color = typeof sr.color === "function" ? sr.color(r) : sr.color;
+      const mark = s("path", { d: barPath(m.l, y, w, barH), fill: color, class: "mark" }, svg);
+      if (opt.showValues !== false) txt(svg, m.l + w + 6, y + barH / 2 + 4, sr.fmt(r[sr.key]), { class: k === 0 ? "lbl val" : "val" });
+      const hit = s("rect", { x: m.l - labW, y: y - gap / 2, width: W - m.r + labW, height: barH + gap, class: "hit" }, svg);
+      svg.insertBefore(hit, mark);
+      bindHover(hit, mark, el, ev => showTip(ev, opt.labelOf(r),
+        (opt.tipRows ? opt.tipRows(r) : ser.map(x => ({ color: typeof x.color === "function" ? x.color(r) : x.color, value: x.fmt(r[x.key]), name: x.name })))));
+    });
+  });
+}
+
+
+// ---------- curva de Pareto: dos series sobre % acumulado ----------
+function paretoChart(el, rows, label) {
+  const W = el.clientWidth || 520, H = Math.round(Math.max(240, Math.min(320, W * .62)));
+  const m = { t: 12, r: 16, b: 34, l: 44 };
+  const svg = svgRoot(el, W, H, label);
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const X = v => m.l + (iw * v) / 100, Y = v => m.t + ih - (ih * v) / 100;
+  const g = s("g", { class: "grid" }, svg), ax = s("g", { class: "axis" }, svg);
+  for (let v = 0; v <= 100; v += 25) {
+    s("line", { x1: m.l, x2: m.l + iw, y1: Y(v), y2: Y(v) }, g);
+    txt(ax, m.l - 8, Y(v) + 4, v + " %", { "text-anchor": "end" });
+    txt(ax, X(v), H - 16, v + " %", { "text-anchor": "middle" });
+  }
+  txt(ax, m.l + iw / 2, H - 2, "% de proveedores o de entidades (de mayor a menor)", { "text-anchor": "middle" });
+  // diagonal = reparto perfectamente parejo
+  s("line", { x1: X(0), y1: Y(0), x2: X(100), y2: Y(100), stroke: css("--text-3"), "stroke-width": 1, "stroke-dasharray": "3 4" }, svg);
+  const defs = [{ actor: "proveedores", color: css("--series-1"), name: "Proveedores" },
+                { actor: "entidades", color: css("--series-2"), name: "Entidades" }];
+  const series = defs.map(d => ({ ...d, pts: rows.filter(r => r.actor === d.actor).sort((a, b) => a.pct_actores - b.pct_actores) }));
+  series.forEach(sr => {
+    const pts = [[0, 0], ...sr.pts.map(r => [r.pct_actores, r.pct_valor])];
+    s("path", { d: pts.map((p, i) => (i ? "L" : "M") + X(p[0]) + "," + Y(p[1])).join(""), fill: "none", stroke: sr.color,
+                "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }, svg);
+    sr.pts.forEach(r => s("circle", { cx: X(r.pct_actores), cy: Y(r.pct_valor), r: 3, fill: sr.color, stroke: css("--surface-1"), "stroke-width": 1.5 }, svg));
+  });
+  // capa de hover: punto más cercano en x
+  const xs = [...new Set(rows.map(r => r.pct_actores))].sort((a, b) => a - b);
+  const cross = s("line", { y1: m.t, y2: m.t + ih, stroke: css("--text-3"), "stroke-width": 1, opacity: 0 }, svg);
+  const ov = s("rect", { x: m.l, y: m.t, width: iw, height: ih, fill: "transparent", tabindex: 0 }, svg);
+  const show = (px, ev) => {
+    const v = ((px - m.l) / iw) * 100;
+    const xv = xs.reduce((a, b) => Math.abs(b - v) < Math.abs(a - v) ? b : a);
+    cross.setAttribute("x1", X(xv)); cross.setAttribute("x2", X(xv)); cross.setAttribute("opacity", 1);
+    showTip(ev, "Primer " + nf0.format(xv) + " % de los actores", series.map(sr => {
+      const r = sr.pts.find(q => q.pct_actores === xv);
+      return { color: sr.color, value: r ? pct(r.pct_valor) : "—", name: sr.name + " · del valor" };
+    }));
+  };
+  ov.addEventListener("pointermove", ev => { const b = svg.getBoundingClientRect(); show(((ev.clientX - b.left) / b.width) * W, ev); });
+  ov.addEventListener("pointerleave", () => { cross.setAttribute("opacity", 0); hideTip(); });
+}
+
+// ---------- armado ----------
+function render(D) {
+  const k = D.kpis, S1 = css("--series-1"), S2 = css("--series-2");
+  document.getElementById("periodo").textContent = "Contratos firmados entre " + k.desde + " y " + k.hasta;
+  document.getElementById("gen").textContent = "Datos cargados el " + D.generado + ".";
+  document.getElementById("lede").textContent =
+    "Descargué de datos.gov.co los " + nf0.format(k.contratos_total) + " contratos que las entidades públicas firmaron en SECOP II durante 2024, " +
+    "los modelé en PostgreSQL y les hice las preguntas de un ciudadano o un auditor: cuánto se contrató, quién recibe el dinero, " +
+    "cómo se contrata y qué tan confiables son los datos.";
+  document.getElementById("sub-how").textContent =
+    "Todo el proceso se reconstruye con un comando (./scripts/load.sh) sobre los " + nf0.format(k.contratos_total) + " contratos descargados.";
+  const kp = document.getElementById("kpis"); kp.textContent = "";
+  [["Contratos válidos", nf0.format(k.contratos), "de " + nf0.format(k.contratos_total) + " firmados"],
+   ["Valor contratado", copC(k.valor), "en pesos colombianos"],
+   ["Entidades", nf0.format(k.entidades), "que firmaron contratos"],
+   ["Proveedores", nf0.format(k.proveedores), "distintos"],
+   ["Contratación directa", pct(k.pct_directa_valor), "del valor contratado"],
+   ["Duración mediana", nf0.format(k.mediana_duracion_dias) + " días", "entre inicio y fin"]
+  ].forEach(([a, b, c]) => { const d = h("div", "kpi"); d.appendChild(h("span", null, a)); d.appendChild(h("b", null, b)); d.appendChild(h("small", null, c)); kp.appendChild(d); });
+
+  // ---- mensual
+  const M = D.mensual, mx = M.reduce((a, b) => b.valor > a.valor ? b : a), mn = M.reduce((a, b) => b.valor < a.valor ? b : a);
+  document.getElementById("t-mensual").textContent =
+    "El mes de mayor contratación fue " + mesTxt(mx.mes) + " con " + copC(mx.valor) + "; el de menor, " + mesTxt(mn.mes) + " con " + copC(mn.valor);
+  legend(document.getElementById("lg-mensual"), [{ type: "ln", color: S1, name: "Valor mensual" }, { type: "ln", color: S2, name: "Media móvil 3 meses", dash: true }]);
+  lineChart(document.getElementById("c-mensual"), M, [
+    { key: "valor", name: "Valor contratado", short: "Valor", color: S1 },
+    { key: "valor_mm3", name: "Media móvil 3 meses", short: "Media 3 m", color: S2, dash: true }], { label: "Valor contratado por mes en 2024" });
+  table(document.getElementById("tb-mensual"), [
+    { t: "Mes", f: r => mesTxt(r.mes) }, { t: "Contratos", n: 1, f: r => nf0.format(r.contratos) },
+    { t: "Valor", n: 1, f: r => cop(r.valor) }, { t: "Media 3 m", n: 1, f: r => cop(r.valor_mm3) }], M);
+
+  // ---- departamentos
+  const DP = D.departamentos, dTop = DP.slice(0, 15);
+  document.getElementById("t-depto").textContent =
+    DP[0].departamento + " concentra el " + pct(DP[0].pct_valor) + " del valor; los tres primeros, el " + pct(100 * DP.slice(0, 3).reduce((a, r) => a + r.valor, 0) / DP.reduce((a, r) => a + r.valor, 0));
+  barsH(document.getElementById("c-depto"), dTop, {
+    label: "Valor contratado por departamento", labelW: 150, barH: 14, bandPad: 8,
+    labelOf: r => r.departamento,
+    series: [{ key: "valor", name: "Valor", color: S1, fmt: v => copC(v) }],
+    tipRows: r => [{ color: S1, value: cop(r.valor), name: "valor contratado" }, { value: pct(r.pct_valor, 2), name: "del total" },
+                   { value: nf0.format(r.contratos), name: "contratos" }, { value: cop(r.valor_mediano), name: "contrato mediano" }]
+  });
+  table(document.getElementById("tb-depto"), [
+    { t: "Departamento", f: r => r.departamento }, { t: "Contratos", n: 1, f: r => nf0.format(r.contratos) },
+    { t: "Valor", n: 1, f: r => cop(r.valor) }, { t: "% del valor", n: 1, f: r => pct(r.pct_valor, 2) },
+    { t: "Contrato mediano", n: 1, f: r => cop(r.valor_mediano) }], DP);
+
+  // ---- sectores
+  const SC = D.sectores;
+  document.getElementById("t-sector").textContent = SC[0].sector + " es el sector que más contrata: " + pct(SC[0].pct_valor) + " del valor";
+  barsH(document.getElementById("c-sector"), SC.slice(0, 10), {
+    label: "Valor contratado por sector", labelW: Math.min(150, (document.getElementById("c-sector").clientWidth || 400) * .42), barH: 14, bandPad: 8,
+    labelOf: r => r.sector,
+    series: [{ key: "valor", name: "Valor", color: S1, fmt: v => copC(v) }],
+    tipRows: r => [{ color: S1, value: cop(r.valor), name: "valor contratado" }, { value: pct(r.pct_valor, 2), name: "del total" }, { value: nf0.format(r.contratos), name: "contratos" }]
+  });
+  table(document.getElementById("tb-sector"), [
+    { t: "Sector", f: r => r.sector }, { t: "Contratos", n: 1, f: r => nf0.format(r.contratos) },
+    { t: "Valor", n: 1, f: r => cop(r.valor) }, { t: "% valor", n: 1, f: r => pct(r.pct_valor, 2) }], SC);
+
+  // ---- concentración
+  const cp = D.concentracion.filter(r => r.actor === "proveedores"), ce = D.concentracion.filter(r => r.actor === "entidades");
+  const at = (arr, p) => arr.find(r => r.pct_actores === p).pct_valor;
+  document.getElementById("t-pareto").textContent =
+    "El 1 % de los proveedores se lleva el " + pct(at(cp, 1)) + " del valor; el 1 % de las entidades, el " + pct(at(ce, 1));
+  legend(document.getElementById("lg-pareto"), [{ type: "ln", color: S1, name: "Proveedores" }, { type: "ln", color: S2, name: "Entidades" }, { type: "ln", color: css("--text-3"), name: "Reparto parejo", dash: true }]);
+  paretoChart(document.getElementById("c-pareto"), D.concentracion, "Curva de Pareto de proveedores y entidades");
+  const sc = document.getElementById("s-conc"); sc.textContent = "";
+  [[at(cp, 10), "del valor lo reciben el 10 % de los proveedores"], [at(ce, 10), "del valor lo contratan el 10 % de las entidades"],
+   [at(cp, 50), "del valor lo reciben la mitad de los proveedores"]].forEach(([a, b]) => {
+    const d = h("div"); d.appendChild(h("b", null, pct(a))); d.appendChild(h("span", null, b)); sc.appendChild(d); });
+  table(document.getElementById("tb-pareto"), [
+    { t: "% de actores", n: 1, f: r => nf0.format(r.pct_actores) + " %" }, { t: "Actor", f: r => r.actor },
+    { t: "Cantidad", n: 1, f: r => nf0.format(r.actores_top) }, { t: "% del valor", n: 1, f: r => pct(r.pct_valor) }],
+    D.concentracion.slice().sort((a, b) => a.actor.localeCompare(b.actor) || a.pct_actores - b.pct_actores));
+
+  const corto = t => t.length > 34 ? t.slice(0, 33) + "…" : t;
+  barsH(document.getElementById("c-entidades"), D.entidades, {
+    label: "Diez entidades con mayor valor contratado", labelW: Math.min(200, (document.getElementById("c-entidades").clientWidth || 400) * .46), barH: 14, bandPad: 8,
+    labelOf: r => corto(r.entidad),
+    series: [{ key: "valor", name: "Valor", color: S1, fmt: v => copC(v) }],
+    tipRows: r => [{ color: S1, value: cop(r.valor), name: r.entidad }, { value: pct(r.pct_valor, 2), name: "del total" },
+                   { value: nf0.format(r.contratos), name: "contratos" }, { value: pct(r.pct_directa), name: "del valor por contratación directa" }]
+  });
+  table(document.getElementById("tb-entidades"), [
+    { t: "#", n: 1, f: r => r.ranking }, { t: "Entidad", f: r => r.entidad }, { t: "Sector", f: r => r.sector },
+    { t: "Contratos", n: 1, f: r => nf0.format(r.contratos) }, { t: "Valor", n: 1, f: r => cop(r.valor) },
+    { t: "% directa", n: 1, f: r => pct(r.pct_directa) }], D.entidades);
+  barsH(document.getElementById("c-proveedores"), D.proveedores, {
+    label: "Diez proveedores con mayor valor recibido", labelW: Math.min(200, (document.getElementById("c-proveedores").clientWidth || 400) * .46), barH: 14, bandPad: 8,
+    labelOf: r => corto(r.proveedor),
+    series: [{ key: "valor", name: "Valor", color: S2, fmt: v => copC(v) }],
+    tipRows: r => [{ color: S2, value: cop(r.valor), name: r.proveedor }, { value: pct(r.pct_valor, 2), name: "del total" },
+                   { value: nf0.format(r.contratos), name: "contratos" }, { value: nf0.format(r.entidades), name: "entidades distintas" }]
+  });
+  table(document.getElementById("tb-proveedores"), [
+    { t: "#", n: 1, f: r => r.ranking }, { t: "Proveedor", f: r => r.proveedor }, { t: "Contratos", n: 1, f: r => nf0.format(r.contratos) },
+    { t: "Entidades", n: 1, f: r => nf0.format(r.entidades) }, { t: "Valor", n: 1, f: r => cop(r.valor) }], D.proveedores);
+
+  // ---- modalidades
+  const G = D.grupos_modalidad, gd = G.find(r => r.grupo === "Contratación directa"), gc = G.find(r => r.grupo === "Competitiva");
+  document.getElementById("t-mod").textContent =
+    "La contratación directa es el " + pct(gd.pct_contratos) + " de los contratos y el " + pct(gd.pct_valor) + " del valor; la competitiva, " + pct(gc.pct_contratos) + " y " + pct(gc.pct_valor);
+  legend(document.getElementById("lg-mod"), [{ type: "rect", color: S1, name: "% de los contratos" }, { type: "rect", color: S2, name: "% del valor" }]);
+  barsH(document.getElementById("c-mod"), G, {
+    label: "Peso de cada grupo de modalidad en contratos y en valor", labelW: 150, barH: 14, bandPad: 12, max: 100,
+    labelOf: r => r.grupo,
+    series: [{ key: "pct_contratos", name: "de los contratos", color: S1, fmt: v => pct(v) },
+             { key: "pct_valor", name: "del valor", color: S2, fmt: v => pct(v) }],
+    tipRows: r => [{ color: S1, value: pct(r.pct_contratos), name: "de los contratos (" + nf0.format(r.contratos) + ")" },
+                   { color: S2, value: pct(r.pct_valor), name: "del valor (" + copC(r.valor) + ")" },
+                   { value: cop(r.valor_mediano), name: "contrato mediano" }]
+  });
+  table(document.getElementById("tb-mod"), [
+    { t: "Modalidad", f: r => r.modalidad }, { t: "Grupo", f: r => r.grupo }, { t: "Contratos", n: 1, f: r => nf0.format(r.contratos) },
+    { t: "Valor", n: 1, f: r => cop(r.valor) }, { t: "% valor", n: 1, f: r => pct(r.pct_valor, 2) }], D.modalidades);
+
+  // ---- duración
+  const DU = D.duracion, corta = 100 * DU.filter(r => r.orden <= 3).reduce((a, r) => a + r.contratos, 0) / DU.reduce((a, r) => a + r.contratos, 0);
+  document.getElementById("t-dur").textContent = "El " + pct(corta) + " de los contratos dura 6 meses o menos; la mediana es de " + nf0.format(k.mediana_duracion_dias) + " días";
+  barsH(document.getElementById("c-dur"), DU, {
+    label: "Distribución de la duración de los contratos", labelW: 110, barH: 18, bandPad: 8,
+    labelOf: r => r.tramo,
+    series: [{ key: "pct", name: "de los contratos", color: S1, fmt: v => pct(v) }],
+    tipRows: r => [{ color: S1, value: pct(r.pct), name: "de los contratos" }, { value: nf0.format(r.contratos), name: "contratos" }, { value: pct(r.pct_valor), name: "del valor" }]
+  });
+  table(document.getElementById("tb-dur"), [
+    { t: "Duración", f: r => r.tramo }, { t: "Contratos", n: 1, f: r => nf0.format(r.contratos) },
+    { t: "% contratos", n: 1, f: r => pct(r.pct) }, { t: "% valor", n: 1, f: r => pct(r.pct_valor) }], DU);
+
+  // ---- ejecución y adiciones
+  const E = D.ejecucion;
+  document.getElementById("t-ejec").textContent = "Al momento de la descarga, se había pagado el " + pct(E.pct_pagado) + " del valor contratado";
+  document.getElementById("d-ejec").textContent = "Valor pagado frente al valor contratado y señales de que el contrato cambió después de firmarse.";
+  const se = document.getElementById("s-ejec"); se.textContent = "";
+  [[pct(E.pct_pagado), "del valor contratado figura como pagado (" + copC(E.valor_pagado) + " de " + copC(E.valor_contratado) + ")"],
+   [pct(E.pct_con_dias_adicionados), "de los contratos tiene días adicionados (" + nf0.format(E.con_dias_adicionados) + ")"],
+   [pct(E.pct_modificado), "figura en estado «Modificado» (" + nf0.format(E.modificados) + ")"]].forEach(([a, b]) => {
+    const d = h("div"); d.appendChild(h("b", null, a)); d.appendChild(h("span", null, b)); se.appendChild(d); });
+  document.getElementById("n-ejec").textContent =
+    "El dataset no trae el valor de las adiciones en dinero, solo los días adicionados y el estado. El valor pagado depende de cuándo cada entidad actualiza SECOP: es una foto, no una cifra final. " +
+    nf0.format(E.pagado_excede) + " contratos reportan haber pagado más de lo contratado.";
+
+  // ---- calidad
+  const C = D.calidad;
+  document.getElementById("sub-cal").textContent =
+    "La limpieza es parte del trabajo. De " + nf0.format(k.contratos_total) + " contratos, " + nf0.format(k.contratos_total - k.contratos) + " (" + pct(100 * (k.contratos_total - k.contratos) / k.contratos_total) + ") quedan fuera de los análisis de dinero (valor en cero, minúsculo, absurdo o contrato repetido).";
+  barsH(document.getElementById("c-cal"), C, {
+    label: "Contratos afectados por cada problema de calidad", labelW: Math.min(230, (document.getElementById("c-cal").clientWidth || 500) * .6), barH: 14, bandPad: 8,
+    labelOf: r => r.problema,
+    series: [{ key: "contratos", name: "contratos", color: S2, fmt: v => nf0.format(v) }],
+    tipRows: r => [{ color: S2, value: nf0.format(r.contratos), name: "contratos (" + pct(r.pct, 3) + ")" }]
+  });
+  table(document.getElementById("tb-cal"), [
+    { t: "Problema", f: r => r.problema }, { t: "Contratos", n: 1, f: r => nf0.format(r.contratos) },
+    { t: "%", n: 1, f: r => pct(r.pct, 2) }, { t: "Criterio", f: r => r.criterio }], C);
+  const reglas = C.map(r => ({ problema: r.problema, regla: r.tratamiento }));
+  table(document.getElementById("tb-reglas"), [{ t: "Problema", f: r => r.problema }, { t: "Tratamiento", f: r => r.regla }], reglas);
+  document.querySelectorAll("#tb-reglas td:nth-child(2), #tb-reglas th:nth-child(2), #tb-cal td:nth-child(4), #tb-cal th:nth-child(4)").forEach(e => { e.style.whiteSpace = "normal"; e.style.minWidth = "200px"; });
+}
+
+let DATA = null, rt;
+fetch("data/dashboard.json")
+  .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+  .then(d => { DATA = d; render(d); })
+  .catch(e => { console.error(e); document.getElementById("main").replaceChildren(h("p", "wrap err",
+    "No se pudieron cargar los datos. Si abriste el archivo directamente, sírvelo con un servidor local: python3 -m http.server --directory docs")); });
+// solo se redibuja si cambia el ancho (en móvil la barra del navegador cambia el alto al hacer scroll)
+let lastW = innerWidth;
+addEventListener("resize", () => {
+  if (innerWidth === lastW) return;
+  lastW = innerWidth; clearTimeout(rt); rt = setTimeout(() => DATA && render(DATA), 150);
+});
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => DATA && render(DATA));
+</script>
+</body>
+</html>

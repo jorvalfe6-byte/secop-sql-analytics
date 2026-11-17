@@ -1,0 +1,44 @@
+table Modalidad
+	lineageTag: 268d6222-b371-8ac5-1a65-989c5ba63a07
+
+	column modalidad_key
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: b2cce17d-2217-d61f-9608-cddbc2b33e6e
+		summarizeBy: none
+		sourceColumn: modalidad_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column Modalidad
+		dataType: string
+		lineageTag: f629d63c-fdd4-bd7a-ab2d-e1ea58b8b513
+		summarizeBy: none
+		sourceColumn: modalidad
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Grupo de modalidad'
+		dataType: string
+		lineageTag: 6e6ac90d-2257-0893-fa32-1b0eaee64117
+		summarizeBy: none
+		sourceColumn: modalidad_grupo
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Modalidad = m
+		mode: import
+		source =
+				let
+				    Archivo = "dim_modalidad.csv",
+				    Binario = if Text.StartsWith(DataPath, "http")
+				        then Web.Contents(DataPath, [RelativePath = Archivo])
+				        else File.Contents(DataPath & Archivo),
+				    Fuente = Csv.Document(Binario, [Delimiter = ",", Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
+				    Encabezados = Table.PromoteHeaders(Fuente, [PromoteAllScalars = true]),
+				    Tipos = Table.TransformColumnTypes(Encabezados, {{"modalidad_key", Int64.Type}, {"modalidad", type text}, {"modalidad_grupo", type text}}, "en-US")
+				in
+				    Tipos
+
+	annotation PBI_ResultType = Table

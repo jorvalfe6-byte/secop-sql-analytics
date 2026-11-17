@@ -1,0 +1,77 @@
+/// Las 100 personas jurídicas con más valor contratado (año completo).
+table 'Top proveedores'
+	lineageTag: cb06d80e-78e3-7504-05e1-5be424d63a2d
+
+	measure 'N.º contratos' = SUM('Top proveedores'[contratos])
+		formatString: #,0
+		lineageTag: 1f9042c1-b4bc-a252-ea21-dbcd0d743a42
+
+	measure 'N.º entidades' = SUM('Top proveedores'[entidades])
+		formatString: #,0
+		lineageTag: 12d0f2d1-8919-72e6-1426-2f465996b020
+
+	measure 'Valor (miles de millones)' = SUM('Top proveedores'[valor]) / 1000000000
+		formatString: #,0.0
+		lineageTag: 3e2a0b7a-613e-01b3-ed25-1bd7b22afef7
+
+	column Proveedor
+		dataType: string
+		lineageTag: ae286f65-a866-7546-af38-157d94e014b9
+		summarizeBy: none
+		sourceColumn: proveedor
+
+		annotation SummarizationSetBy = Automatic
+
+	column NIT
+		dataType: string
+		lineageTag: 8b1eceff-c65e-8c20-1927-2af422fd9b7e
+		summarizeBy: none
+		sourceColumn: nit_proveedor
+
+		annotation SummarizationSetBy = Automatic
+
+	column contratos
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 62b35cf9-b1d4-b91a-6429-ae13ed71fce1
+		summarizeBy: none
+		sourceColumn: contratos
+
+		annotation SummarizationSetBy = Automatic
+
+	column entidades
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: f4a71130-72d1-a10a-05c2-7c33542df90d
+		summarizeBy: none
+		sourceColumn: entidades
+
+		annotation SummarizationSetBy = Automatic
+
+	column valor
+		dataType: double
+		isHidden
+		formatString: #,0.0
+		lineageTag: f80738e1-b6d3-4d71-1d62-bb384a586ed6
+		summarizeBy: none
+		sourceColumn: valor
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'Top proveedores' = m
+		mode: import
+		source =
+				let
+				    Archivo = "top_proveedores.csv",
+				    Binario = if Text.StartsWith(DataPath, "http")
+				        then Web.Contents(DataPath, [RelativePath = Archivo])
+				        else File.Contents(DataPath & Archivo),
+				    Fuente = Csv.Document(Binario, [Delimiter = ",", Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
+				    Encabezados = Table.PromoteHeaders(Fuente, [PromoteAllScalars = true]),
+				    Tipos = Table.TransformColumnTypes(Encabezados, {{"proveedor", type text}, {"nit_proveedor", type text}, {"contratos", Int64.Type}, {"entidades", Int64.Type}, {"valor", type number}}, "en-US")
+				in
+				    Tipos
+
+	annotation PBI_ResultType = Table

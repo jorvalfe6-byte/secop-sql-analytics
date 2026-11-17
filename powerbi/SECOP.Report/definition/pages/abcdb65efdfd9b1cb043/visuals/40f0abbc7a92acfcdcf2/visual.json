@@ -1,0 +1,127 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.0.0/schema.json",
+  "name": "40f0abbc7a92acfcdcf2",
+  "position": {
+    "x": 640,
+    "y": 204,
+    "z": 1008,
+    "height": 492,
+    "width": 616,
+    "tabOrder": 1008
+  },
+  "visual": {
+    "visualType": "tableEx",
+    "drillFilterOtherVisuals": true,
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Top proveedores"
+                    }
+                  },
+                  "Property": "Valor (miles de millones)"
+                }
+              },
+              "queryRef": "Top proveedores.Valor (miles de millones)",
+              "nativeQueryRef": "Valor (miles de millones)"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Top proveedores"
+                    }
+                  },
+                  "Property": "N.º contratos"
+                }
+              },
+              "queryRef": "Top proveedores.N.º contratos",
+              "nativeQueryRef": "N.º contratos"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Top proveedores"
+                    }
+                  },
+                  "Property": "N.º entidades"
+                }
+              },
+              "queryRef": "Top proveedores.N.º entidades",
+              "nativeQueryRef": "N.º entidades"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Top proveedores"
+                    }
+                  },
+                  "Property": "Proveedor"
+                }
+              },
+              "queryRef": "Top proveedores.Proveedor",
+              "nativeQueryRef": "Proveedor"
+            }
+          ]
+        }
+      },
+      "sortDefinition": {
+        "sort": [
+          {
+            "field": {
+              "Measure": {
+                "Expression": {
+                  "SourceRef": {
+                    "Entity": "Top proveedores"
+                  }
+                },
+                "Property": "Valor (miles de millones)"
+              }
+            },
+            "direction": "Descending"
+          }
+        ],
+        "isDefaultSort": true
+      }
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Personas jurídicas con más valor contratado (año completo)'"
+                }
+              }
+            },
+            "fontSize": {
+              "expr": {
+                "Literal": {
+                  "Value": "12D"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,35 @@
+departamento_key,departamento,codigo_dane
+1,Amazonas,91
+2,Antioquia,05
+3,Arauca,81
+4,Atlántico,08
+5,Bolívar,13
+6,Boyacá,15
+7,Caldas,17
+8,Caquetá,18
+9,Casanare,85
+10,Cauca,19
+11,Cesar,20
+12,Chocó,27
+13,Cundinamarca,25
+14,Córdoba,23
+15,Distrito Capital de Bogotá,11
+16,Guainía,94
+17,Guaviare,95
+18,Huila,41
+19,La Guajira,44
+20,Magdalena,47
+21,Meta,50
+22,Nariño,52
+23,No definido,
+24,Norte de Santander,54
+25,Putumayo,86
+26,Quindío,63
+27,Risaralda,66
+28,"San Andrés, Providencia y Santa Catalina",88
+29,Santander,68
+30,Sucre,70
+31,Tolima,73
+32,Valle del Cauca,76
+33,Vaupés,97
+34,Vichada,99

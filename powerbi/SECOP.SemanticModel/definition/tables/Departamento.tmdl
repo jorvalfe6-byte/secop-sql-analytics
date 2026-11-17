@@ -1,0 +1,44 @@
+table Departamento
+	lineageTag: 52d9957b-0157-0f4f-6a23-4f48e7e3b7e2
+
+	column departamento_key
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: aed58116-8c57-ce68-eb40-f623c52f2634
+		summarizeBy: none
+		sourceColumn: departamento_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column Departamento
+		dataType: string
+		lineageTag: f801af77-6340-0928-18f5-d17280d8b2f4
+		summarizeBy: none
+		sourceColumn: departamento
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Código DANE'
+		dataType: string
+		lineageTag: 70cb5e6b-a89e-18f4-4d8e-78356bf842b8
+		summarizeBy: none
+		sourceColumn: codigo_dane
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Departamento = m
+		mode: import
+		source =
+				let
+				    Archivo = "dim_departamento.csv",
+				    Binario = if Text.StartsWith(DataPath, "http")
+				        then Web.Contents(DataPath, [RelativePath = Archivo])
+				        else File.Contents(DataPath & Archivo),
+				    Fuente = Csv.Document(Binario, [Delimiter = ",", Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
+				    Encabezados = Table.PromoteHeaders(Fuente, [PromoteAllScalars = true]),
+				    Tipos = Table.TransformColumnTypes(Encabezados, {{"departamento_key", Int64.Type}, {"departamento", type text}, {"codigo_dane", type text}}, "en-US")
+				in
+				    Tipos
+
+	annotation PBI_ResultType = Table

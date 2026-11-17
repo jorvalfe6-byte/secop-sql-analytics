@@ -1,0 +1,69 @@
+/// Contratos válidos con fechas coherentes, por tramo de duración.
+table 'Duración'
+	lineageTag: 5feb7300-02b5-9eaa-37ec-4ffe96f8b728
+
+	measure 'Contratos por tramo' = SUM('Duración'[contratos])
+		formatString: #,0
+		lineageTag: d2ea68d2-173f-fe6f-05d3-1764d2661d4d
+
+	measure '% de contratos por tramo' = DIVIDE([Contratos por tramo], CALCULATE([Contratos por tramo], ALLSELECTED('Duración'[Tramo de duración])))
+		formatString: 0.0%
+		lineageTag: ae910770-e462-47f3-32fa-383c20ba26e3
+
+	measure '% del valor por tramo' = DIVIDE(SUM('Duración'[valor]), CALCULATE(SUM('Duración'[valor]), ALLSELECTED('Duración'[Tramo de duración])))
+		formatString: 0.0%
+		lineageTag: ad287e64-7d4d-39da-fc76-0187b5bedabc
+
+	column 'Tramo de duración'
+		dataType: string
+		lineageTag: a5c64821-1eac-5c6a-afd8-0ac0598d2990
+		summarizeBy: none
+		sourceColumn: tramo_duracion
+
+		annotation SummarizationSetBy = Automatic
+
+	column modalidad_key
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 399230c6-95e3-d89d-0be3-e5e9a0ea6a26
+		summarizeBy: none
+		sourceColumn: modalidad_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column contratos
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 4bb6b07a-2bf5-49cc-53e7-d724d895fd5f
+		summarizeBy: none
+		sourceColumn: contratos
+
+		annotation SummarizationSetBy = Automatic
+
+	column valor
+		dataType: double
+		isHidden
+		formatString: #,0.0
+		lineageTag: 8cae5c50-a53d-2123-6351-f89eb295c88f
+		summarizeBy: none
+		sourceColumn: valor
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'Duración' = m
+		mode: import
+		source =
+				let
+				    Archivo = "fact_duracion.csv",
+				    Binario = if Text.StartsWith(DataPath, "http")
+				        then Web.Contents(DataPath, [RelativePath = Archivo])
+				        else File.Contents(DataPath & Archivo),
+				    Fuente = Csv.Document(Binario, [Delimiter = ",", Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
+				    Encabezados = Table.PromoteHeaders(Fuente, [PromoteAllScalars = true]),
+				    Tipos = Table.TransformColumnTypes(Encabezados, {{"tramo_duracion", type text}, {"modalidad_key", Int64.Type}, {"contratos", Int64.Type}, {"valor", type number}}, "en-US")
+				in
+				    Tipos
+
+	annotation PBI_ResultType = Table

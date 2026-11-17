@@ -1,0 +1,213 @@
+/// Contratos firmados en 2024, agregados por mes x entidad x modalidad x tipo de persona.
+table Contratos
+	lineageTag: 48aaa688-86f5-3cc6-0982-0ea5ca47855a
+
+	/// Todos los contratos, incluidos los que no pasan los controles de valor.
+	measure 'Contratos firmados' = SUM(Contratos[contratos])
+		formatString: #,0
+		lineageTag: ee45ee7e-b003-fff9-9164-6d9467312629
+
+	/// Valor entre $ 1.000 y menos de $ 1 billón, sin repetidos.
+	measure 'Contratos válidos' = SUM(Contratos[contratos_validos])
+		formatString: #,0
+		lineageTag: 900f321a-d356-4a4e-57a7-860b00517945
+
+	/// Suma del valor de los contratos válidos, en pesos.
+	measure 'Valor contratado' = SUM(Contratos[valor])
+		formatString: "$ "#,0
+		lineageTag: 41f7d40e-e9ff-40a8-883c-16ae3359a391
+
+	measure 'Valor (billones)' = DIVIDE([Valor contratado], 1000000000000)
+		formatString: #,0.0
+		lineageTag: 08a9fddf-cb3c-c1ba-1207-32bb6c8e9c4d
+
+	/// Promedio, muy por encima de la mediana (18 millones) por la cola de contratos grandes.
+	measure 'Valor promedio (millones)' = DIVIDE([Valor contratado], [Contratos válidos]) / 1000000
+		formatString: #,0.0
+		lineageTag: 65f25707-bbb8-f6b4-6e53-a7fb78709bc8
+
+	measure '% del valor' = DIVIDE([Valor contratado], CALCULATE([Valor contratado], ALLSELECTED()))
+		formatString: 0.0%
+		lineageTag: 6cbb583e-9656-4fc5-793a-c91a6cd2e619
+
+	measure '% de los contratos' = DIVIDE([Contratos válidos], CALCULATE([Contratos válidos], ALLSELECTED()))
+		formatString: 0.0%
+		lineageTag: 1b9305d8-773a-c988-b7a4-c1b267f77fd6
+
+	/// Pagado según SECOP, topado en el valor de cada contrato.
+	measure '% del valor pagado' = DIVIDE(SUM(Contratos[valor_pagado]), [Valor contratado])
+		formatString: 0.0%
+		lineageTag: 91604a30-f5ca-65c3-c3c2-7e3956eae180
+
+	measure '% sin ningún pago' = DIVIDE(SUM(Contratos[contratos_sin_pago]), [Contratos válidos])
+		formatString: 0.0%
+		lineageTag: 922772fc-81bf-b3f1-225c-56e4284a4b4f
+
+	measure '% con días adicionados' = DIVIDE(SUM(Contratos[contratos_con_adicion]), [Contratos válidos])
+		formatString: 0.0%
+		lineageTag: baad67f0-b815-8df6-fdf9-2d722f605a15
+
+	measure 'Duración promedio (días)' = DIVIDE(SUM(Contratos[duracion_dias_suma]), SUM(Contratos[contratos_con_duracion]))
+		formatString: #,0
+		lineageTag: f0f1ff38-7855-3ec6-0bf5-8e94a552144b
+
+	/// Pareto: participación acumulada de las entidades ordenadas de mayor a menor valor.
+	measure '% valor acumulado (entidades)' = ```
+			VAR actual = [Valor contratado]
+			VAR tabla =
+			    CALCULATETABLE(
+			        ADDCOLUMNS(VALUES(Entidad[entidad_key]), "@v", [Valor contratado]),
+			        ALLSELECTED(Entidad)
+			    )
+			VAR acumulado = SUMX(FILTER(tabla, [@v] >= actual), [@v])
+			RETURN DIVIDE(acumulado, SUMX(tabla, [@v]))
+			```
+		formatString: 0.0%
+		lineageTag: f755a2de-f626-925a-630f-82b33aad9db8
+
+	column mes
+		dataType: dateTime
+		isHidden
+		formatString: yyyy-mm-dd
+		lineageTag: c3befe2f-7a31-3057-417f-2c9f983e5b1d
+		summarizeBy: none
+		sourceColumn: mes
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column entidad_key
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 3959e6d8-7602-ece2-b1ff-77d310ebc96e
+		summarizeBy: none
+		sourceColumn: entidad_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column modalidad_key
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 50dec2a3-b840-c00b-0da7-0e65bfa1fe93
+		summarizeBy: none
+		sourceColumn: modalidad_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column tipo_persona
+		dataType: string
+		isHidden
+		lineageTag: 2a9817f6-a224-ab48-2df6-54c9737fe858
+		summarizeBy: none
+		sourceColumn: tipo_persona
+
+		annotation SummarizationSetBy = Automatic
+
+	column contratos
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 38a4dada-771d-9793-6a69-40c24fee787c
+		summarizeBy: none
+		sourceColumn: contratos
+
+		annotation SummarizationSetBy = Automatic
+
+	column contratos_validos
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: b12ca073-3f4b-94e8-7e43-d42a46eae6b7
+		summarizeBy: none
+		sourceColumn: contratos_validos
+
+		annotation SummarizationSetBy = Automatic
+
+	column valor
+		dataType: double
+		isHidden
+		formatString: #,0.0
+		lineageTag: 3af8fbac-0701-2cd9-fd12-fbd87898978b
+		summarizeBy: none
+		sourceColumn: valor
+
+		annotation SummarizationSetBy = Automatic
+
+	column valor_pagado
+		dataType: double
+		isHidden
+		formatString: #,0.0
+		lineageTag: 32f7e328-bf6b-e06b-46db-e3099b3ac31e
+		summarizeBy: none
+		sourceColumn: valor_pagado
+
+		annotation SummarizationSetBy = Automatic
+
+	column contratos_sin_pago
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 0f3646c3-b275-e219-fc3c-6dc0612954d7
+		summarizeBy: none
+		sourceColumn: contratos_sin_pago
+
+		annotation SummarizationSetBy = Automatic
+
+	column contratos_con_adicion
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 2284b793-4717-7ea5-ed4e-de898bb71290
+		summarizeBy: none
+		sourceColumn: contratos_con_adicion
+
+		annotation SummarizationSetBy = Automatic
+
+	column dias_adicionados
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 4bc617a3-75af-c9b0-c259-182a4bed3b5a
+		summarizeBy: none
+		sourceColumn: dias_adicionados
+
+		annotation SummarizationSetBy = Automatic
+
+	column contratos_con_duracion
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 62b220a4-8a20-5092-682b-68baa8807669
+		summarizeBy: none
+		sourceColumn: contratos_con_duracion
+
+		annotation SummarizationSetBy = Automatic
+
+	column duracion_dias_suma
+		dataType: double
+		isHidden
+		formatString: #,0.0
+		lineageTag: f2debc45-c5c1-10e6-484f-a8c91f1b8194
+		summarizeBy: none
+		sourceColumn: duracion_dias_suma
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Contratos = m
+		mode: import
+		source =
+				let
+				    Archivo = "fact_mensual.csv",
+				    Binario = if Text.StartsWith(DataPath, "http")
+				        then Web.Contents(DataPath, [RelativePath = Archivo])
+				        else File.Contents(DataPath & Archivo),
+				    Fuente = Csv.Document(Binario, [Delimiter = ",", Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
+				    Encabezados = Table.PromoteHeaders(Fuente, [PromoteAllScalars = true]),
+				    Tipos = Table.TransformColumnTypes(Encabezados, {{"mes", type date}, {"entidad_key", Int64.Type}, {"modalidad_key", Int64.Type}, {"tipo_persona", type text}, {"contratos", Int64.Type}, {"contratos_validos", Int64.Type}, {"valor", type number}, {"valor_pagado", type number}, {"contratos_sin_pago", Int64.Type}, {"contratos_con_adicion", Int64.Type}, {"dias_adicionados", Int64.Type}, {"contratos_con_duracion", Int64.Type}, {"duracion_dias_suma", type number}}, "en-US")
+				in
+				    Tipos
+
+	annotation PBI_ResultType = Table

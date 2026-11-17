@@ -1,0 +1,8 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/page/1.4.0/schema.json",
+  "name": "446c9e7a5631f5219b40",
+  "displayName": "Entidades y sectores",
+  "displayOption": "FitToPage",
+  "height": 720,
+  "width": 1280
+}
